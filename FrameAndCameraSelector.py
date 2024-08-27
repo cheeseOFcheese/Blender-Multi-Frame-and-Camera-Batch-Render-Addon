@@ -1,7 +1,7 @@
 bl_info = {
-    "name": "Multiple Frame and Camera Batch Render",
-    "author": "Victor Do",
-    "version": (2, 2),
+    "name": "CheeseOFcheese - Multiple Frame and Camera Batch Render",
+    "author": "Victor Do, CheeseOFcheese",
+    "version": (2, 3),
     "blender": (2, 80, 0),
     "location": "Render Properties > Custom Render Panel",
     "description": "Allows specifying custom frames or frame ranges and multiple cameras for rendering in batches",
@@ -10,7 +10,6 @@ bl_info = {
 
 import bpy
 import os
-import time
 
 class CameraSettings(bpy.types.PropertyGroup):
     camera: bpy.props.PointerProperty(
@@ -50,7 +49,7 @@ class CustomRenderPanel(bpy.types.Panel):
             box.prop(cam_setting, "show_preview", text="Show Preview")
 
         layout.operator("scene.add_cam_setting", text="Add Camera Setting")
-        layout.operator("render.my_operator", text="Render Frames")
+        layout.operator("render.cheese_batch_render", text="Render Frames")
 
 class SCENE_OT_AddCamSetting(bpy.types.Operator):
     bl_idname = "scene.add_cam_setting"
@@ -70,136 +69,103 @@ class SCENE_OT_RemoveCamSetting(bpy.types.Operator):
         return {'FINISHED'}
 
 class RenderJob:
-    def __init__(self, index, cam_setting):
-        self.index = index
+    def __init__(self, cam_setting):
         self.cam_setting = cam_setting
-        self.frames = []
+        self.frames = self._parse_frame_ranges(cam_setting.frame_ranges)
         self.is_running = False
         self.is_cancelled = False
+        self.original_filepath = bpy.context.scene.render.filepath
 
-    def start(self, context):
-        scene = context.scene
-        scene.camera = self.cam_setting.camera
-        frame_ranges = self.cam_setting.frame_ranges.split(',')
-        
-        for frame_range in frame_ranges:
+    def _parse_frame_ranges(self, frame_ranges):
+        frames = []
+        for frame_range in frame_ranges.split(','):
             if '-' in frame_range:
                 start_frame, end_frame = map(int, frame_range.split('-'))
-                self.frames.extend(range(start_frame, end_frame + 1))
+                frames.extend(range(start_frame, end_frame + 1))
             else:
-                self.frames.append(int(frame_range))
-        self.original_filepath = scene.render.filepath
-        self.render_next_frame(context)
-        
-        bpy.app.handlers.render_cancel.append(self.render_cancel_handler)
+                try:
+                    frames.append(int(frame_range))
+                except ValueError:
+                    print(f"CheeseOFcheese --- Invalid frame range: {frame_range}")
+        return frames
 
-    def render_next_frame(self, context):
+    def start(self):
+        if not self.cam_setting.camera:
+            print("CheeseOFcheese --- No camera assigned to the setting. Skipping...")
+            self.finish()
+            return
+
+        bpy.context.scene.camera = self.cam_setting.camera
+        print(f"CheeseOFcheese --- Starting render for camera: {self.cam_setting.camera.name}")
+        self.render_next_frame()
+
+    def render_next_frame(self):
         if self.frames and not self.is_cancelled:
             frame = self.frames.pop(0)
-            scene = context.scene
+            scene = bpy.context.scene
             scene.frame_set(frame)
-            # Get the file extension based on the render settings
-            file_format = scene.render.image_settings.file_format
-            file_extension = '.png' if file_format == 'PNG' else '.jpg' if file_format == 'JPEG' else '.bmp' if file_format == 'BMP' else '.tiff' if file_format == 'TIFF' else '.exr' if file_format == 'OPEN_EXR' else ''
-            check_filepath = os.path.join(self.original_filepath, f"{self.cam_setting.camera.name}_frame{frame}{file_extension}")
-            filepath = os.path.join(self.original_filepath, f"{self.cam_setting.camera.name}_frame{frame}")
+
+            file_format = scene.render.image_settings.file_format.lower()
+            file_extension = f".{file_format}"
+            filepath = os.path.join(self.original_filepath, f"{self.cam_setting.camera.name}_frame{frame}{file_extension}")
             scene.render.filepath = filepath
 
-            # Check if the file already exists and if overwrite is disabled
-            if not scene.render.use_overwrite and os.path.isfile(bpy.path.abspath(check_filepath)):
-                print("MFCBR --- " +f"Skipping frame {frame} with {self.cam_setting.camera.name} because it has already been rendered")
-                # Skip this frame and move to the next one
-                def set_is_running_true():
-                    self.is_running = True
-                
-                bpy.app.timers.register(set_is_running_true)
-                
-                bpy.app.timers.register(lambda: self.render_next_frame(bpy.context), first_interval=1.0)
+            if not scene.render.use_overwrite and os.path.isfile(bpy.path.abspath(filepath)):
+                print(f"CheeseOFcheese --- Skipping frame {frame} with {self.cam_setting.camera.name} because it has already been rendered")
+                self.render_next_frame()
             else:
+                self.is_running = True
                 bpy.app.handlers.render_post.append(self.render_post_handler)
-                print("MFCBR --- " +f"Started rendering frame {frame} with {self.cam_setting.camera.name}")
-                def set_is_running_true():
-                    self.is_running = True
-                
-                bpy.app.timers.register(set_is_running_true)
-
                 bpy.ops.render.render('INVOKE_DEFAULT' if self.cam_setting.show_preview else 'EXEC_DEFAULT', write_still=True)
         else:
             self.finish()
 
-    def render_cancel_handler(self, scene, dummy):
-        bpy.app.handlers.render_cancel.remove(self.render_cancel_handler)
-        print("MFCBR --- Cancel Render")
-        def set_is_cancelled_true():
-            self.is_cancelled = True
-        
-        bpy.app.timers.register(set_is_cancelled_true)
-
-    def render_post_handler(self, scene, dummy):
+    def render_post_handler(self, scene):
         bpy.app.handlers.render_post.remove(self.render_post_handler)
-        print("MFCBR --- Finished rendering a frame POST")
-        if (not self.is_cancelled):
-            bpy.app.timers.register(lambda: self.render_next_frame(bpy.context), first_interval=1.0)
+        print(f"CheeseOFcheese --- Finished rendering frame {scene.frame_current} with {self.cam_setting.camera.name}")
+        self.is_running = False
 
-
+        if not self.is_cancelled:
+            self.render_next_frame()
 
     def finish(self):
-        def set_is_running_false():
-            self.is_running = False
-            bpy.context.scene.render.filepath = self.original_filepath
-            print(f"MFCBR --- Finished rendering all frames with {self.cam_setting.camera.name}")
-
-        bpy.app.timers.register(set_is_running_false)
-
+        self.is_running = False
+        bpy.context.scene.render.filepath = self.original_filepath
+        print(f"CheeseOFcheese --- Finished rendering all frames with {self.cam_setting.camera.name}")
 
 class RenderOperator(bpy.types.Operator):
-    bl_idname = "render.my_operator"
-    bl_label = "Render Operator"
+    bl_idname = "render.cheese_batch_render"
+    bl_label = "Cheese Batch Render Operator"
 
-    _timer = None
     _jobs = []
     _current_job = None
 
     def execute(self, context):
-        self._jobs = [RenderJob(i, cam_setting) for i, cam_setting in enumerate(context.scene.cam_settings)]
-        print(self._jobs)
-        self._current_job = None
+        self._jobs = [RenderJob(cam_setting) for cam_setting in context.scene.cam_settings if cam_setting.camera]
+        print("CheeseOFcheese --- Render jobs initialized:", self._jobs)
 
-        wm = context.window_manager
-        self._timer = wm.event_timer_add(1.0, window=context.window)
-        wm.modal_handler_add(self)
+        if not self._jobs:
+            self.report({'WARNING'}, "No valid render jobs found. Please add camera settings.")
+            return {'CANCELLED'}
 
+        context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
         if event.type == 'TIMER':
-            #print("MFCBR --- TIMER EVENT TRIGGERED.")
-            #print("MFCBR --- " +self._jobs)
-            #print("MFCBR --- " +self._current_job)
-            #if self._current_job is not None:
-            #    print("MFCBR --- " +self._current_job.is_running)
-            #    print("MFCBR --- " +self._current_job.is_cancelled)
-                
-            if self._current_job is not None and self._current_job.is_cancelled:
-                return self.cancel(context)
-
             if self._current_job is None or not self._current_job.is_running:
                 if self._jobs:
                     self._current_job = self._jobs.pop(0)
-                    self._current_job.start(context)
+                    self._current_job.start()
                 else:
                     return self.cancel(context)
-            
 
         return {'PASS_THROUGH'}
 
-
     def cancel(self, context):
-        wm = context.window_manager
-        wm.event_timer_remove(self._timer)
         if self._current_job:
             self._current_job.finish()
-        print("MFCBR --- All Camera Jobs Completed.")
+        print("CheeseOFcheese --- All camera jobs completed.")
         return {'CANCELLED'}
 
 def register():
@@ -208,7 +174,7 @@ def register():
     bpy.utils.register_class(CustomRenderPanel)
     bpy.utils.register_class(SCENE_OT_AddCamSetting)
     bpy.utils.register_class(SCENE_OT_RemoveCamSetting)
-    bpy.utils.register_class(RenderOperator) 
+    bpy.utils.register_class(RenderOperator)
 
 def unregister():
     del bpy.types.Scene.cam_settings
@@ -216,7 +182,7 @@ def unregister():
     bpy.utils.unregister_class(CustomRenderPanel)
     bpy.utils.unregister_class(SCENE_OT_AddCamSetting)
     bpy.utils.unregister_class(SCENE_OT_RemoveCamSetting)
-    bpy.utils.unregister_class(RenderOperator) 
+    bpy.utils.unregister_class(RenderOperator)
 
 if __name__ == "__main__":
     register()
