@@ -1,47 +1,95 @@
+# Multi-Frame and Multi-Camera Batch Render Add-on
 
-# Blender Addon: Multi-Frame-and-Camera-Batch-Renderer
+English / Русский
 
-## Description:
+## Overview / Обзор
 
-This is my code for a blender addon that allows me to select specific frames and cameras to render from all at once. 
+This Blender add-on lets you create a per-scene list of camera entries and render specified frames or ranges per camera in a single batch operation. The add-on switches the active camera for each job and renders frames sequentially using a modal operator so the UI remains responsive.
 
-Have you ever wanted to automate the tedious process of rendering from specific frames or frame ranges and having to switch the active camera?
+Этот аддон для Blender позволяет хранить в сцене список камер с указанием кадров/диапазонов для рендеринга и запускать пакетную отрисовку — по одной камере за раз. Активная камера переключается автоматически, а рендер выполняется в модальном операторе, чтобы интерфейс оставался отзывчивым.
 
-For example, when you make an animation and want to render certain frames from different camera angles?
+## Key Features / Основные возможности
 
-With this add-on, the active camera will automatically be swapped so you can render any frame range from as many camera angles as you like all at the press of a single button.
+- Per-scene camera entries with: camera object, "Frames / Ranges" string, and "Show Preview" toggle.
+- Add/remove entries manually or use "Add All Cameras" (natural sort by name).
+- Fill empty frame fields from a single scene-wide string using "Fill Empty Frame Fields".
+- Batch render via a modal operator that processes one camera job at a time.
+- Skip existing files when overwrite is disabled (supported formats: PNG, JPEG, BMP, TIFF, OPEN_EXR).
+- Output files are saved as <camera_name>_frame<frame> with the format extension.
 
-## Instructions:
+Перечень возможностей:
 
-The Panel is found in the Render Properties Tab on the right.
+- Запись настроек по сцене: объект камеры, строка "Frames / Ranges", переключатель предварительного просмотра.
+- Добавление/удаление записей вручную или кнопкой "Add All Cameras" (натуральная сортировка по имени).
+- Заполнение пустых полей кадров общей строкой сцены через "Fill Empty Frame Fields".
+- Пакетный рендер реализован в модальном операторе, который выполняет задания по одной камере.
+- Пропуск существующих файлов при отключённой перезаписи (поддерживаемые форматы: PNG, JPEG, BMP, TIFF, OPEN_EXR).
+- Файлы сохраняются как <camera_name>_frame<frame>.<ext> в папке Render Output.
 
-You can specify individual frames by entering the frame numbers separated by commas 
-- (e.g., 1,25,250).
+## Frame / Range Syntax / Синтаксис кадров и диапазонов
 
-You can specify ranges of frames by entering the start and end frames separated by a dash 
-- (e.g., 25-40).
+- Single frames: `1` -> frame 1
+- Multiple frames: `1,5,10` -> frames 1, 5, 10
+- Ranges: `10-12` -> frames 10, 11, 12
+- Mixed: `1,3-5,8` -> frames 1, 3, 4, 5, 8
 
-If you want to specify both individual frames and ranges, you can do so by separating them with commas
-- (e.g., 11,25,250,25-40).
-  
-![image](https://github.com/Victor2266/Blender-Multi-Frame-and-Camera-Selector-Addon/assets/46388269/e5324d3f-6c3b-48d2-8b25-683441a6a0ea)
+Rules / Правила:
 
-Make sure you set the output path to a directory and not a file.
+- Tokens are comma-separated; whitespace is ignored.
+- Range tokens use `start-end` (inclusive). Invalid tokens raise an error and the field will not be accepted.
 
-If you disable overwriting then it will skip the existing frames in the output directory (only works for .png .jpg .bmp .tiff .exr files for now). 
-![image](https://github.com/Victor2266/Blender-Multi-Frame-and-Camera-Selector-Addon/assets/46388269/09ecede9-445a-430c-aea3-1a84ea13b5b5)
+Токены разделяются запятыми; пробелы игнорируются. Диапазоны задаются через `start-end` (включительно). Неправильный синтаксис вызывает ошибку.
 
-You probably want to disable Persistent Data under the performance options of Blender because if you are taking photos from multiple angles you want Blender to recalculate the amount of VRAM it needs for each angle instead of always using VRAM when it doesn't need to and eventually running out.
-![image](https://github.com/Victor2266/Blender-Multi-Frame-and-Camera-Selector-Addon/assets/46388269/15149de3-90c5-42b9-b78a-9f1722ff3f69)
+## How to use / Как пользоваться
 
+1. Open the Render Properties tab and find the "Frame & Camera Selector" panel.
+2. Add camera entries or click "Add All Cameras" to populate the list.
+3. For each camera entry, choose a camera, enter the `Frames / Ranges` string, and set `Show Preview` if you want the interactive render window.
+4. Optionally set a scene-wide `Fill Frames / Ranges` string and click "Fill Empty Frame Fields" to populate empty entries.
+5. Make sure the Render Output path (`Output Properties > Output > Path`) points to a directory, not a single file.
+6. Click the green "Render Frames" button to start the batch process.
 
-**WIP**
-You can enable or disable the render preview window for each camera, disabling this option will save on some RAM depending on the resolution of the image preview. Disabling this option will also lock up Blender until the render is finished so you'd have to close Blender to cancel a render partway through.
-The implementation of previews is a hacky solution that seems to work for me, disable the preview if it doesn't work.
+1. Откройте вкладку Render Properties и найдите панель "Frame & Camera Selector".
+2. Добавьте записи камер или нажмите "Add All Cameras".
+3. Для каждой записи выберите камеру, введите `Frames / Ranges` и включите `Show Preview`, если нужен окно превью.
+4. При необходимости задайте общую строку `Fill Frames / Ranges` в сцене и нажмите "Fill Empty Frame Fields".
+5. Убедитесь, что путь для вывода (`Output Properties > Output > Path`) указывает на папку.
+6. Нажмите кнопку "Render Frames", чтобы запустить пакетный рендер.
 
-## Installation:
-Just Download this repo as a zip file and install it like any other blender add-on. 
-![image](https://github.com/Victor2266/Blender-Multi-Frame-and-Camera-Selector-Addon/assets/46388269/40889a38-0aab-4a96-af62-46404082b76f)
-![image](https://github.com/Victor2266/Blender-Multi-Frame-and-Camera-Selector-Addon/assets/46388269/2c5a01ee-ae0b-4bf5-9851-304a6cad0253)
+## Notes / Примечания
 
-Works as of Blender version 4.1.0
+- The operator uses `INVOKE_DEFAULT` when `Show Preview` is enabled (shows Blender's render window) and `EXEC_DEFAULT` when disabled (no preview). Disabling preview may block Blender's UI for each render call.
+- Files are saved in the configured output folder using the camera name and frame number. If `Overwrite` is disabled and a supported-format file exists, that frame is skipped.
+- Ensure the Render Output is a folder (not a specific file). The add-on checks that the output path resolves to an existing directory.
+- Supported automatic extension mapping: PNG -> .png, JPEG -> .jpg, BMP -> .bmp, TIFF -> .tiff, OPEN_EXR -> .exr. Other formats may produce a file without extension handling.
+
+- Оператор использует `INVOKE_DEFAULT`, если включён `Show Preview` (показывает окно рендера), и `EXEC_DEFAULT`, если выключен. Без превью Blender может блокироваться на время рендера кадра.
+- Файлы сохраняются в указанную папку с именем камеры и номером кадра. Если перезапись отключена и файл в поддерживаемом формате существует, кадр пропускается.
+- Убедитесь, что Output Path — это папка; аддон проверяет, что путь является директорией.
+- Соответствие форматов: PNG -> .png, JPEG -> .jpg, BMP -> .bmp, TIFF -> .tiff, OPEN_EXR -> .exr.
+
+## Installation / Установка
+
+1. Download the repository as ZIP or copy the addon folder into Blender's `addons` folder.
+2. In Blender, go to `Edit > Preferences > Add-ons` and install/enable the add-on.
+
+1. Скачайте репозиторий ZIP или поместите папку аддона в директорию `addons` Blender.
+2. В Blender откройте `Edit > Preferences > Add-ons` и установите/включите аддон.
+
+## Tested / Совместимость
+
+- Registered `bl_info` targets Blender 2.80+, tested with Blender 4.1.0.
+
+Аддон совместим с Blender 2.80 и выше; проверялось на Blender 4.1.0.
+
+## Troubleshooting / Устранение неполадок
+
+- If frame parsing fails, check the `Frames / Ranges` string for invalid tokens.
+- If output files are not created, verify the Render Output path is a valid directory and that you have write permissions.
+- If preview rendering fails on your system, try disabling `Show Preview` for entries.
+
+Если разбор кадров не проходит — проверьте синтаксис в `Frames / Ranges`. Если файлы не сохраняются — проверьте путь вывода и права на запись. При проблемах с превью отключите `Show Preview`.
+
+## License / Лицензия
+
+See project repository for license details.
