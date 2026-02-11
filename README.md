@@ -50,7 +50,7 @@ Rules:
 
 ### Tested
 
-- Registered `bl_info` targets Blender 2.80+, tested with Blender 4.1.0.
+- Registered `bl_info` targets Blender 2.80+, tested with Blender 4.5.0.
 
 ### Troubleshooting
 
@@ -110,7 +110,7 @@ Rules:
 
 ### Совместимость
 
-- `bl_info` нацелен на Blender 2.80+, проверялось на Blender 4.1.0.
+- `bl_info` нацелен на Blender 2.80+, проверялось на Blender 4.5.0.
 
 ### Устранение неполадок
 
@@ -120,6 +120,3 @@ Rules:
 
 ---
 
-## License / Лицензия
-
-See project repository for license details.
